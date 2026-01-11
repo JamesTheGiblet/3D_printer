@@ -3,1099 +3,257 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Print Troubleshooter - 3D Printing Problem Diagnosis</title>
+    <title>BuddAI | 3D Printing Diagnostic Engine</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         :root {
-            --primary: #3b82f6;       /* Technical blue */
-            --primary-dark: #2563eb;
-            --secondary: #10b981;     /* Solution green */
-            --utility: #6b7280;       /* Neutral gray */
-            --diagnostic: #f59e0b;    /* Warning/attention */
-            --error: #ef4444;         /* Problem/error */
-            --dark: #1f2937;
-            --light: #f9fafb;
-            --border: #e5e7eb;
-            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --primary: #2563eb;
+            --secondary: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #0f172a;
+            --bg: #f8fafc;
+            --card: #ffffff;
+            --border: #e2e8f0;
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f1f5f9;
-            min-height: 100vh;
-            padding: 20px;
-            color: var(--dark);
-            line-height: 1.5;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); color: var(--dark); line-height: 1.6; height: 100vh; display: flex; flex-direction: column; }
+        
+        header { background: var(--dark); color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 4px solid var(--primary); }
+        .db-status { font-size: 0.8rem; background: rgba(255,255,255,0.1); padding: 4px 12px; border-radius: 20px; }
+        
+        main { display: grid; grid-template-columns: 350px 1fr; gap: 1rem; padding: 1rem; flex: 1; min-height: 0; }
+        
+        .sidebar { background: var(--card); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; overflow: hidden; }
+        .search-bar { padding: 1rem; border-bottom: 1px solid var(--border); }
+        .search-bar input { width: 100%; padding: 0.75rem; border: 1px solid var(--border); border-radius: 8px; outline: none; }
+        .category-list { overflow-y: auto; flex: 1; padding: 0.5rem; }
+        .cat-item { padding: 0.75rem; border-radius: 8px; cursor: pointer; transition: 0.2s; border-left: 3px solid transparent; margin-bottom: 4px; }
+        .cat-item:hover { background: #f1f5f9; border-left-color: var(--primary); }
+        
+        .chat-area { background: var(--card); border: 1px solid var(--border); border-radius: 12px; display: flex; flex-direction: column; min-height: 0; }
+        .messages { flex: 1; overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1rem; background: #fdfdfe; }
+        
+        .msg { max-width: 85%; padding: 1rem; border-radius: 12px; position: relative; }
+        .msg-bot { background: white; border: 1px solid var(--border); align-self: flex-start; border-left: 4px solid var(--primary); }
+        .msg-user { background: var(--primary); color: white; align-self: flex-end; }
+        
+        .solution-card { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 1rem; border-radius: 8px; margin-top: 0.75rem; color: #166534; }
+        .technical-note { background: #fffbeb; border: 1px solid #fef3c7; padding: 0.75rem; border-radius: 8px; margin-top: 0.5rem; font-size: 0.85rem; }
+        .code-snippet { background: #1e293b; color: #e2e8f0; padding: 0.5rem; border-radius: 4px; font-family: monospace; margin-top: 0.5rem; display: block; overflow-x: auto; }
+        
+        .input-area { padding: 1.5rem; border-top: 1px solid var(--border); display: flex; gap: 1rem; }
+        .input-area input { flex: 1; padding: 1rem; border: 2px solid var(--border); border-radius: 10px; font-size: 1rem; outline: none; transition: 0.2s; }
+        .input-area input:focus { border-color: var(--primary); }
+        .diag-btn { background: var(--primary); color: white; border: none; padding: 0 1.5rem; border-radius: 10px; cursor: pointer; font-weight: 600; display: flex; align-items: center; gap: 8px; }
 
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            height: calc(100vh - 40px);
-        }
-
-        header {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: var(--shadow);
-            border-left: 4px solid var(--primary);
-        }
-
-        h1 {
-            color: var(--dark);
-            font-size: 1.8rem;
-            margin-bottom: 8px;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-weight: 600;
-        }
-
-        h1 i {
-            color: var(--primary);
-            background: #eff6ff;
-            padding: 10px;
-            border-radius: 10px;
-        }
-
-        .subtitle {
-            color: var(--utility);
-            font-size: 0.95rem;
-            margin-bottom: 4px;
-        }
-
-        .description {
-            font-size: 0.9rem;
-            color: var(--utility);
-            background: #f8fafc;
-            padding: 10px;
-            border-radius: 8px;
-            border-left: 3px solid var(--secondary);
-            margin-top: 10px;
-        }
-
-        .main-content {
-            display: flex;
-            flex: 1;
-            gap: 20px;
-            min-height: 0;
-        }
-
+        .progress-overlay { position: fixed; top: 0; left: 0; right: 0; height: 4px; background: #e2e8f0; z-index: 1000; }
+        .progress-bar { height: 100%; background: var(--secondary); width: 0%; transition: width 0.3s; }
+        
         @media (max-width: 768px) {
-            .main-content {
-                flex-direction: column;
-            }
-        }
-
-        .knowledge-panel {
-            flex: 1;
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: var(--shadow);
-            overflow-y: auto;
-            min-width: 300px;
-            border-top: 4px solid var(--utility);
-        }
-
-        .chat-container {
-            flex: 2;
-            background: white;
-            border-radius: 12px;
-            box-shadow: var(--shadow);
-            display: flex;
-            flex-direction: column;
-            min-width: 0;
-            border-top: 4px solid var(--primary);
-        }
-
-        .chat-header {
-            padding: 20px;
-            border-bottom: 1px solid var(--border);
-            background: white;
-            border-radius: 12px 12px 0 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .chat-header h2 {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            color: var(--dark);
-            font-weight: 600;
-        }
-
-        .detail-level {
-            display: flex;
-            gap: 10px;
-            background: #f8fafc;
-            padding: 8px;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-        }
-
-        .level-btn {
-            padding: 6px 12px;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            background: white;
-            color: var(--utility);
-            cursor: pointer;
-            font-size: 0.85rem;
-            transition: all 0.2s;
-        }
-
-        .level-btn.active {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        .chat-messages {
-            flex: 1;
-            padding: 20px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-            background: #f8fafc;
-        }
-
-        .message {
-            max-width: 85%;
-            padding: 12px 16px;
-            border-radius: 12px;
-            line-height: 1.4;
-            animation: fadeIn 0.3s ease;
-            font-size: 0.95rem;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .user-message {
-            background: var(--primary);
-            color: white;
-            align-self: flex-end;
-            border-bottom-right-radius: 4px;
-            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
-        }
-
-        .bot-message {
-            background: white;
-            border: 1px solid var(--border);
-            align-self: flex-start;
-            border-bottom-left-radius: 4px;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-        }
-
-        .bot-message.detailed {
-            border-left: 4px solid var(--secondary);
-        }
-
-        .bot-message.technical {
-            border-left: 4px solid var(--primary);
-        }
-
-        .bot-message.quick {
-            border-left: 4px solid var(--utility);
-        }
-
-        .issue-tag {
-            display: inline-block;
-            background: #eff6ff;
-            color: var(--primary-dark);
-            padding: 4px 10px;
-            border-radius: 16px;
-            font-size: 0.8rem;
-            margin-right: 6px;
-            margin-bottom: 6px;
-            border: 1px solid #dbeafe;
-        }
-
-        .solution-box {
-            background: #f0fdf4;
-            border-left: 3px solid var(--secondary);
-            padding: 12px;
-            margin-top: 12px;
-            border-radius: 0 6px 6px 0;
-            font-size: 0.9rem;
-        }
-
-        .explanation-box {
-            background: #fffbeb;
-            border-left: 3px solid var(--diagnostic);
-            padding: 12px;
-            margin-top: 12px;
-            border-radius: 0 6px 6px 0;
-            font-size: 0.9rem;
-            color: #92400e;
-        }
-
-        .command-box {
-            background: #1f2937;
-            color: white;
-            padding: 10px;
-            border-radius: 6px;
-            margin-top: 8px;
-            font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
-            overflow-x: auto;
-        }
-
-        .chat-input {
-            padding: 20px;
-            border-top: 1px solid var(--border);
-            display: flex;
-            gap: 12px;
-        }
-
-        .chat-input input {
-            flex: 1;
-            padding: 14px 20px;
-            border: 2px solid var(--border);
-            border-radius: 8px;
-            font-size: 0.95rem;
-            transition: all 0.2s;
-            background: white;
-        }
-
-        .chat-input input:focus {
-            outline: none;
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-
-        .send-btn {
-            padding: 14px 24px;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 500;
-            transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 0.95rem;
-        }
-
-        .send-btn:hover {
-            background: var(--primary-dark);
-        }
-
-        .common-issues {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            padding: 20px;
-            border-top: 1px solid var(--border);
-            background: #f8fafc;
-        }
-
-        .issue-btn {
-            padding: 8px 16px;
-            background: white;
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.85rem;
-            transition: all 0.2s;
-            color: var(--dark);
-        }
-
-        .issue-btn:hover {
-            background: var(--primary);
-            color: white;
-            border-color: var(--primary);
-        }
-
-        .stats {
-            display: flex;
-            justify-content: space-between;
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border);
-            color: var(--utility);
-            font-size: 0.85rem;
-        }
-
-        .stat-item {
-            text-align: center;
-        }
-
-        .stat-number {
-            display: block;
-            font-size: 1.2rem;
-            font-weight: 600;
-            color: var(--primary);
-        }
-
-        .category-list {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            margin-top: 20px;
-        }
-
-        .category-item {
-            padding: 14px;
-            background: white;
-            border-radius: 8px;
-            border: 1px solid var(--border);
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .category-item:hover {
-            background: #eff6ff;
-            border-color: var(--primary);
-            transform: translateX(2px);
-        }
-
-        .category-title {
-            font-weight: 600;
-            color: var(--dark);
-            margin-bottom: 6px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .category-count {
-            background: #e5e7eb;
-            color: var(--dark);
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-
-        .category-desc {
-            font-size: 0.85rem;
-            color: var(--utility);
-        }
-
-        .search-box {
-            position: relative;
-            margin-bottom: 20px;
-        }
-
-        .search-box input {
-            width: 100%;
-            padding: 12px 20px 12px 45px;
-            border: 2px solid var(--border);
-            border-radius: 8px;
-            font-size: 0.95rem;
-            background: white;
-        }
-
-        .search-box i {
-            position: absolute;
-            left: 15px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: var(--utility);
-        }
-
-        .loading {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            padding: 40px;
-            color: var(--utility);
-            font-size: 0.9rem;
-        }
-
-        .loading i {
-            margin-right: 10px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-
-        .notification {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: var(--primary);
-            color: white;
-            padding: 12px 20px;
-            border-radius: 8px;
-            box-shadow: var(--shadow);
-            animation: slideIn 0.3s ease;
-            display: none;
-            z-index: 1000;
-            font-size: 0.9rem;
-            max-width: 300px;
-        }
-
-        @keyframes slideIn {
-            from { transform: translateX(100%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        .mobile-menu-btn {
-            display: none;
-            background: none;
-            border: 1px solid var(--border);
-            padding: 10px;
-            border-radius: 8px;
-            color: var(--primary);
-            cursor: pointer;
-            font-size: 1rem;
-        }
-
-        @media (max-width: 768px) {
-            .mobile-menu-btn {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                width: 44px;
-                height: 44px;
-            }
-            
-            .knowledge-panel {
-                display: none;
-            }
-            
-            .knowledge-panel.active {
-                display: block;
-                position: fixed;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                z-index: 1000;
-                background: white;
-                border-radius: 0;
-                padding-top: 60px;
-            }
-            
-            .close-panel {
-                position: absolute;
-                top: 20px;
-                right: 20px;
-                background: none;
-                border: none;
-                font-size: 1.5rem;
-                color: var(--utility);
-                cursor: pointer;
-                width: 40px;
-                height: 40px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                border-radius: 8px;
-                background: #f8fafc;
-            }
-            
-            .chat-input {
-                padding: 15px;
-                gap: 10px;
-            }
-            
-            .send-btn {
-                padding: 14px 20px;
-            }
-        }
-
-        .section-title {
-            font-size: 0.9rem;
-            text-transform: uppercase;
-            color: var(--utility);
-            letter-spacing: 0.5px;
-            margin-bottom: 12px;
-            font-weight: 600;
-        }
-
-        .data-source {
-            font-size: 0.8rem;
-            color: var(--utility);
-            margin-top: 20px;
-            padding-top: 15px;
-            border-top: 1px solid var(--border);
-            text-align: center;
-        }
-
-        .diagnostic-icon {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 24px;
-            height: 24px;
-            background: var(--primary);
-            color: white;
-            border-radius: 6px;
-            margin-right: 8px;
-        }
-
-        .rule-metadata {
-            font-size: 0.8rem;
-            color: var(--utility);
-            margin-top: 10px;
-            display: flex;
-            gap: 10px;
-        }
-
-        .rule-id {
-            background: #f3f4f6;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: monospace;
+            main { grid-template-columns: 1fr; }
+            .sidebar { display: none; }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1><i class="fas fa-tools"></i> Print Troubleshooter</h1>
-            <p class="subtitle">Diagnose 3D printing problems using a database of 1,600+ troubleshooting rules</p>
-            <div class="description">
-                Describe your printing issue in plain language. The system will search through categorized troubleshooting rules and provide relevant solutions.
+    <div class="progress-overlay"><div class="progress-bar" id="loadProgress"></div></div>
+    
+    <header>
+        <div>
+            <h2><i class="fas fa-microchip"></i> BuddAI Expert</h2>
+            <span style="font-size: 0.7rem; opacity: 0.7;">3D Printing Forensic Diagnostic System</span>
+        </div>
+        <div class="db-status" id="statusText">System Initializing...</div>
+    </header>
+
+    <main>
+        <div class="sidebar">
+            <div class="search-bar">
+                <input type="text" id="kbSearch" placeholder="Browse Knowledge Base...">
             </div>
-        </header>
-        
-        <div class="main-content">
-            <div class="knowledge-panel" id="knowledgePanel">
-                <button class="close-panel" id="closePanel">&times;</button>
-                
-                <div class="section-title">Search Knowledge Base</div>
-                <div class="search-box">
-                    <i class="fas fa-search"></i>
-                    <input type="text" id="searchInput" placeholder="Search rules by symptom, error, or component...">
-                </div>
-                
-                <div class="section-title">Problem Categories</div>
-                <div class="category-list" id="categoryList">
-                    <div class="loading">
-                        <i class="fas fa-spinner"></i> Loading troubleshooting database...
-                    </div>
-                </div>
-                
-                <div class="stats">
-                    <div class="stat-item">
-                        <span class="stat-number" id="ruleCount">0</span>
-                        <span>Rules Loaded</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number" id="categoryCount">0</span>
-                        <span>Categories</span>
-                    </div>
-                    <div class="stat-item">
-                        <span class="stat-number" id="matchCount">-</span>
-                        <span>Matches</span>
-                    </div>
-                </div>
-                
-                <div class="data-source">
-                    Data source: BuddAI 3D Printer Troubleshooting Database
+            <div class="category-list" id="catContainer"></div>
+        </div>
+
+        <div class="chat-area">
+            <div class="messages" id="messageFlow">
+                <div class="msg msg-bot">
+                    <strong>System Ready:</strong> Describe a symptom, error code, or firmware issue. 
+                    I am currently monitoring 1,600+ rules for Marlin, Klipper, and RepRapFirmware.
                 </div>
             </div>
-            
-            <div class="chat-container">
-                <div class="chat-header">
-                    <h2><i class="fas fa-search"></i> Problem Diagnosis</h2>
-                    <div class="detail-level">
-                        <div class="section-title" style="margin: 0; padding-right: 10px; color: var(--utility); font-size: 0.8rem;">Detail:</div>
-                        <button class="level-btn active" data-level="detailed">Detailed</button>
-                        <button class="level-btn" data-level="technical">Technical</button>
-                        <button class="level-btn" data-level="quick">Quick</button>
-                    </div>
-                </div>
-                
-                <div class="chat-messages" id="chatMessages">
-                    <div class="message bot-message detailed">
-                        <div class="diagnostic-icon"><i class="fas fa-tools"></i></div>
-                        <strong>Print Troubleshooter:</strong> I can diagnose 3D printing problems by matching your description against a database of troubleshooting rules.
-                        
-                        <div class="solution-box">
-                            <strong>How to use:</strong>
-                            <ul style="margin-top: 8px; padding-left: 20px;">
-                                <li>Describe your problem in detail (e.g., "first layer gaps on the right side")</li>
-                                <li>Use the buttons below for common issues</li>
-                                <li>Browse categories in the left panel</li>
-                                <li>Adjust detail level for more/less explanation</li>
-                            </ul>
-                        </div>
-                        
-                        <div class="rule-metadata">
-                            <span class="rule-id">System Ready</span>
-                            <span>• 1,600+ rules available</span>
-                            <span>• 50+ categories</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="common-issues" id="commonIssues">
-                    <div class="loading">
-                        <i class="fas fa-spinner"></i> Loading common issues...
-                    </div>
-                </div>
-                
-                <div class="chat-input">
-                    <button class="mobile-menu-btn" id="mobileMenuBtn" title="Browse knowledge base">
-                        <i class="fas fa-book"></i>
-                    </button>
-                    <input type="text" id="userInput" placeholder="Describe the printing problem (e.g., 'stringing between parts', 'bed adhesion issue', 'layer shift')">
-                    <button class="send-btn" id="sendBtn">
-                        <i class="fas fa-search"></i> Diagnose
-                    </button>
-                </div>
+            <div class="input-area">
+                <input type="text" id="userInput" placeholder="Ex: 'thermal runaway on bed' or 'Marlin z-offset not saving'">
+                <button class="diag-btn" id="diagBtn"><i class="fas fa-search"></i> Diagnose</button>
             </div>
         </div>
-    </div>
-    
-    <div class="notification" id="notification"></div>
+    </main>
 
     <script>
-        class PrintTroubleshooter {
+        class BuddAI {
             constructor() {
-                this.knowledgeBase = null;
-                this.detailLevel = 'detailed'; // detailed, technical, quick
-                this.categories = [];
                 this.rules = [];
-                this.searchHistory = [];
-                
-                // DOM Elements
-                this.elements = {
-                    knowledgePanel: document.getElementById('knowledgePanel'),
-                    chatMessages: document.getElementById('chatMessages'),
-                    userInput: document.getElementById('userInput'),
-                    sendBtn: document.getElementById('sendBtn'),
-                    searchInput: document.getElementById('searchInput'),
-                    categoryList: document.getElementById('categoryList'),
-                    commonIssues: document.getElementById('commonIssues'),
-                    levelBtns: document.querySelectorAll('.level-btn'),
-                    ruleCount: document.getElementById('ruleCount'),
-                    categoryCount: document.getElementById('categoryCount'),
-                    matchCount: document.getElementById('matchCount'),
-                    mobileMenuBtn: document.getElementById('mobileMenuBtn'),
-                    closePanel: document.getElementById('closePanel'),
-                    notification: document.getElementById('notification')
-                };
-                
+                this.categories = new Map();
+                this.isProcessing = false;
                 this.init();
             }
-            
+
             async init() {
-                this.setupEventListeners();
-                await this.loadKnowledgeBase();
-                this.initializeInterface();
+                const diagBtn = document.getElementById('diagBtn');
+                const userInput = document.getElementById('userInput');
+                const kbSearch = document.getElementById('kbSearch');
+
+                diagBtn.onclick = () => this.diagnose();
+                userInput.onkeypress = (e) => e.key === 'Enter' && this.diagnose();
+                kbSearch.oninput = (e) => this.filterKB(e.target.value);
+
+                await this.loadData();
             }
-            
-            setupEventListeners() {
-                // Diagnose button
-                this.elements.sendBtn.addEventListener('click', () => this.handleDiagnosis());
-                this.elements.userInput.addEventListener('keypress', (e) => {
-                    if (e.key === 'Enter') this.handleDiagnosis();
-                });
-                
-                // Detail level selection
-                this.elements.levelBtns.forEach(btn => {
-                    btn.addEventListener('click', () => this.setDetailLevel(btn.dataset.level));
-                });
-                
-                // Search in knowledge panel
-                this.elements.searchInput.addEventListener('input', (e) => this.searchKnowledge(e.target.value));
-                
-                // Mobile menu
-                this.elements.mobileMenuBtn.addEventListener('click', () => {
-                    this.elements.knowledgePanel.classList.add('active');
-                });
-                
-                this.elements.closePanel.addEventListener('click', () => {
-                    this.elements.knowledgePanel.classList.remove('active');
-                });
-                
-                // Click outside to close panel on mobile
-                document.addEventListener('click', (e) => {
-                    if (window.innerWidth <= 768 && 
-                        !this.elements.knowledgePanel.contains(e.target) && 
-                        !this.elements.mobileMenuBtn.contains(e.target) &&
-                        this.elements.knowledgePanel.classList.contains('active')) {
-                        this.elements.knowledgePanel.classList.remove('active');
-                    }
-                });
-            }
-            
-            async loadKnowledgeBase() {
+
+            async loadData() {
                 try {
                     const response = await fetch('https://gist.githubusercontent.com/JamesTheGiblet/3a336658f46d2a2cf2eda9e5ed4ce7f1/raw/94e068f628f1237e23916bdff9e3928723c6a759/my_coding_rules.txt');
                     const text = await response.text();
-                    this.parseKnowledgeBase(text);
-                    this.updateStats();
-                    this.renderCategories();
-                    this.renderCommonIssues();
-                    this.showNotification('Troubleshooting database loaded successfully', 'success');
-                } catch (error) {
-                    console.error('Error loading knowledge base:', error);
-                    this.showNotification('Error loading database. Using sample data.', 'error');
-                    this.loadSampleData();
+                    this.parseDataChunked(text);
+                } catch (e) {
+                    document.getElementById('statusText').innerText = "Data Offline";
                 }
             }
-            
-            parseKnowledgeBase(text) {
-                this.categories = [];
-                this.rules = [];
-                
+
+            parseDataChunked(text) {
                 const lines = text.split('\n');
-                let currentCategory = null;
-                let ruleCounter = 0;
-                
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    
-                    // Detect sections
-                    if (line.startsWith('# SECTION') || line.includes('SECTION')) {
-                        const match = line.match(/(?:SECTION|Section)\s*\d+:?\s*(.+)/i);
-                        if (match) {
-                            currentCategory = {
-                                id: this.categories.length + 1,
-                                title: match[1].trim(),
-                                rules: []
-                            };
-                            this.categories.push(currentCategory);
-                        }
-                    }
-                    // Parse troubleshooting rules
-                    else if (line.startsWith('/teach') && currentCategory) {
-                        const parts = line.split(':');
-                        if (parts.length >= 2) {
-                            const problem = parts[0].replace('/teach', '').trim();
-                            const solution = parts.slice(1).join(':').trim();
-                            
-                            ruleCounter++;
-                            const rule = {
-                                id: ruleCounter,
-                                problem: problem,
-                                solution: solution,
-                                category: currentCategory.title,
-                                categoryId: currentCategory.id,
-                                keywords: this.extractKeywords(problem + ' ' + solution),
-                                hasExplanation: false
+                let index = 0;
+                let currentCat = "General";
+                const total = lines.length;
+
+                const process = () => {
+                    const startTime = performance.now();
+                    // Process for 16ms per frame to stay at 60fps
+                    while (performance.now() - startTime < 16 && index < total) {
+                        const line = lines[index].trim();
+                        
+                        if (line.startsWith('# SECTION')) {
+                            currentCat = line.split(':')[1]?.trim() || "Hardware";
+                        } else if (line.startsWith('/teach')) {
+                            const [prob, sol] = line.replace('/teach', '').split(':');
+                            const rule = { 
+                                id: this.rules.length,
+                                category: currentCat,
+                                problem: prob?.trim(), 
+                                solution: sol?.trim(),
+                                explain: "" 
                             };
                             
-                            // Check for explanation
-                            if (i + 1 < lines.length && lines[i + 1].trim().startsWith('/explain')) {
-                                const explainLine = lines[i + 1].trim();
-                                const explainParts = explainLine.split(':');
-                                if (explainParts.length >= 2) {
-                                    rule.explanation = explainParts.slice(1).join(':').trim();
-                                    rule.hasExplanation = true;
-                                    i++; // Skip explanation line
-                                }
+                            // Peek ahead for explain
+                            if (lines[index+1]?.trim().startsWith('/explain')) {
+                                rule.explain = lines[index+1].replace('/explain', '').split(':')[1]?.trim();
+                                index++;
                             }
-                            
                             this.rules.push(rule);
-                            currentCategory.rules.push(rule);
                         }
+                        index++;
                     }
-                }
-                
-                // If no categories were found, create some from the data
-                if (this.categories.length === 0) {
-                    this.createCategoriesFromRules();
-                }
-            }
-            
-            createCategoriesFromRules() {
-                // Group rules by type based on keywords
-                const categoryMap = {
-                    'Bed Issues': ['bed', 'first layer', 'adhesion', 'warping', 'leveling'],
-                    'Extrusion': ['extrusion', 'extrude', 'flow', 'under-extrusion', 'over-extrusion'],
-                    'Temperature': ['temperature', 'thermal', 'PID', 'heater', 'thermistor'],
-                    'Mechanical': ['belt', 'motor', 'bearing', 'noise', 'vibration', 'shift'],
-                    'Firmware': ['Marlin', 'Klipper', 'G-code', 'M-code', 'firmware', 'configuration'],
-                    'Quality': ['stringing', 'blobbing', 'ghosting', 'ringing', 'z-banding', 'surface']
+
+                    const progress = (index / total) * 100;
+                    document.getElementById('loadProgress').style.width = `${progress}%`;
+
+                    if (index < total) {
+                        requestAnimationFrame(process);
+                    } else {
+                        this.finalizeDB();
+                    }
                 };
-                
-                this.categories = Object.entries(categoryMap).map(([title, keywords], index) => {
-                    const categoryRules = this.rules.filter(rule => 
-                        keywords.some(keyword => 
-                            (rule.problem + ' ' + rule.solution).toLowerCase().includes(keyword.toLowerCase())
-                        )
-                    );
+                process();
+            }
+
+            finalizeDB() {
+                document.getElementById('statusText').innerText = `${this.rules.length} Rules Active`;
+                document.getElementById('loadProgress').style.display = 'none';
+                this.renderSidebar();
+            }
+
+            renderSidebar() {
+                const container = document.getElementById('catContainer');
+                const cats = [...new Set(this.rules.map(r => r.category))];
+                container.innerHTML = cats.map(c => `
+                    <div class="cat-item" onclick="app.filterByCat('${c}')">
+                        <i class="fas fa-folder"></i> ${c}
+                    </div>
+                `).join('');
+            }
+
+            diagnose() {
+                const input = document.getElementById('userInput').value.toLowerCase();
+                if (!input) return;
+
+                this.addMessage(input, 'user');
+                document.getElementById('userInput').value = '';
+
+                // Weighted search
+                const results = this.rules.map(rule => {
+                    let score = 0;
+                    const prob = rule.problem.toLowerCase();
+                    const exp = rule.explain.toLowerCase();
                     
-                    return {
-                        id: index + 1,
-                        title: title,
-                        rules: categoryRules
-                    };
-                });
-                
-                // Put remaining rules in "Other Issues"
-                const categorizedRuleIds = new Set();
-                this.categories.forEach(cat => cat.rules.forEach(rule => categorizedRuleIds.add(rule.id)));
-                const uncategorizedRules = this.rules.filter(rule => !categorizedRuleIds.has(rule.id));
-                
-                if (uncategorizedRules.length > 0) {
-                    this.categories.push({
-                        id: this.categories.length + 1,
-                        title: 'Other Issues',
-                        rules: uncategorizedRules
+                    if (prob.includes(input)) score += 10;
+                    input.split(' ').forEach(word => {
+                        if (word.length < 3) return;
+                        if (prob.includes(word)) score += 5;
+                        if (exp.includes(word)) score += 2;
                     });
-                }
+                    return { ...rule, score };
+                })
+                .filter(r => r.score > 0)
+                .sort((a, b) => b.score - a.score)
+                .slice(0, 3);
+
+                this.renderResponse(results);
             }
-            
-            extractKeywords(text) {
-                const technicalTerms = [
-                    'bed adhesion', 'first layer', 'z-offset', 'esteps', 'flow rate',
-                    'stringing', 'retraction', 'temperature', 'PID', 'thermal runaway',
-                    'layer shift', 'belt tension', 'vibration', 'ghosting', 'z-banding',
-                    'under-extrusion', 'over-extrusion', 'clog', 'nozzle', 'hotend',
-                    'Marlin', 'Klipper', 'G-code', 'BLTouch', 'probe', 'leveling',
-                    'calibration', 'tuning', 'slicer', 'speed', 'acceleration', 'jerk'
-                ];
-                
-                return technicalTerms.filter(term => 
-                    text.toLowerCase().includes(term.toLowerCase())
-                );
-            }
-            
-            updateStats() {
-                this.elements.ruleCount.textContent = this.rules.length;
-                this.elements.categoryCount.textContent = this.categories.length;
-            }
-            
-            renderCategories() {
-                const container = this.elements.categoryList;
-                container.innerHTML = '';
-                
-                this.categories.forEach(category => {
-                    if (category.rules.length === 0) return;
-                    
-                    const div = document.createElement('div');
-                    div.className = 'category-item';
-                    div.innerHTML = `
-                        <div class="category-title">
-                            <span>${category.title}</span>
-                            <span class="category-count">${category.rules.length}</span>
-                        </div>
-                        <div class="category-desc">
-                            ${category.rules.slice(0, 3).map(rule => 
-                                `<span class="issue-tag">${rule.problem.split(':')[0]?.substring(0, 25) || rule.problem.substring(0, 25)}</span>`
-                            ).join('')}
-                        </div>
-                    `;
-                    div.addEventListener('click', () => {
-                        this.showCategoryDiagnosis(category);
-                        this.elements.knowledgePanel.classList.remove('active');
-                    });
-                    container.appendChild(div);
-                });
-            }
-            
-            renderCommonIssues() {
-                const container = this.elements.commonIssues;
-                container.innerHTML = '';
-                
-                const commonProblems = [
-                    "First layer not sticking",
-                    "Stringing between parts", 
-                    "Under-extrusion gaps",
-                    "Layer shifting on Y axis",
-                    "Temperature fluctuations",
-                    "Bed leveling inconsistent",
-                    "BLTouch probe errors",
-                    "Extruder skipping steps",
-                    "Z banding patterns",
-                    "Overheating stepper drivers",
-                    "Ghosting/ringing on walls",
-                    "Poor bridging performance",
-                    "PETG stringing excessive",
-                    "ABS warping at corners",
-                    "Nozzle clogging frequently"
-                ];
-                
-                commonProblems.forEach(problem => {
-                    const btn = document.createElement('button');
-                    btn.className = 'issue-btn';
-                    btn.textContent = problem;
-                    btn.addEventListener('click', () => {
-                        this.elements.userInput.value = problem;
-                        this.handleDiagnosis();
-                    });
-                    container.appendChild(btn);
-                });
-            }
-            
-            setDetailLevel(level) {
-                this.detailLevel = level;
-                
-                // Update UI
-                this.elements.levelBtns.forEach(btn => {
-                    btn.classList.toggle('active', btn.dataset.level === level);
-                });
-                
-                this.showNotification(`Detail level set to: ${level}`, 'info');
-            }
-            
-            async handleDiagnosis() {
-                const problem = this.elements.userInput.value.trim();
-                if (!problem) {
-                    this.showNotification('Please describe the printing problem', 'error');
+
+            renderResponse(results) {
+                if (results.length === 0) {
+                    this.addMessage("No direct match found in the rulebase. Check spelling or try a broader term like 'under-extrusion'.", 'bot');
                     return;
                 }
-                
-                // Add to search history
-                this.searchHistory.push({
-                    query: problem,
-                    timestamp: new Date(),
-                    results: null
-                });
-                
-                this.addUserMessage(problem);
-                this.elements.userInput.value = '';
-                
-                // Show searching indicator
-                const searchingMsg = this.addSearchingIndicator(problem);
-                
-                // Simulate processing delay
-                await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 400));
-                
-                // Remove searching indicator
-                searchingMsg.remove();
-                
-                // Find matching rules
-                const matches = this.findMatchingRules(problem);
-                
-                if (matches.length > 0) {
-                    this.displayDiagnosisResults(matches, problem);
-                } else {
-                    this.displayNoResults(problem);
-                }
-            }
-            
-            findMatchingRules(query) {
-                const searchTerms = query.toLowerCase()
-                    .split(/[\s,.;]+/)
-                    .filter(term => term.length > 2);
-                
-                if (searchTerms.length === 0) return [];
-                
-                // Score each rule based on relevance
-                const scoredRules = this.rules.map(rule => {
-                    let score = 0;
-                    const searchText = (rule.problem + ' ' + rule.solution + ' ' + rule.category).toLowerCase();
-                    
-                    // Exact phrase match
-                    if (searchText.includes(query.toLowerCase())) {
-                        score += 10;
-                    }
-                    
-                    // Individual term matches
-                    searchTerms.forEach(term => {
-                        if (rule.problem.toLowerCase().includes(term)) score += 3;
-                        if (rule.solution.toLowerCase().includes(term)) score += 2;
-                        if (rule.category.toLowerCase().includes(term)) score += 1;
-                        
-                        // Keyword matches
-                        if (rule.keywords.some(keyword => keyword.toLowerCase().includes(term))) {
-                            score += 2;
-                        }
-                    });
-                    
-                    return { rule, score };
-                });
-                
-                // Filter and sort
-                return scoredRules
-                    .filter(item => item.score > 0)
-                    .sort((a, b) => b.score - a.score)
-                    .slice(0, 5) // Top 5 matches
-                    .map(item => item.rule);
-            }
-            
-            displayDiagnosisResults(matches, query) {
-                this.elements.matchCount.textContent = matches.length;
-                
-                if (matches.length === 1) {
-                    this.displaySingleDiagnosis(matches[0], query);
-                } else {
-                    this.displayMultipleDiagnosis(matches, query);
-                }
-            }
-            
-            displaySingleDiagnosis(rule, query) {
-                let html = `
-                    <div class="diagnostic-icon"><i class="fas fa-check-circle"></i></div>
-                    <strong>Diagnosis for "${query}":</strong> Found 1 matching rule
-                `;
-                
-                html += `<div style="margin-top: 12px;"><strong>${rule.problem}</strong></div>`;
-                
-                // Solution based on detail level
-                if (this.detailLevel === 'quick') {
-                    html += `<div class="solution-box"><strong>Fix:</strong> ${rule.solution}</div>`;
-                } else if (this.detailLevel === 'technical') {
-                    html += `<div class="solution-box"><strong>Technical solution:</strong> ${rule.solution}</div>`;
-                    if (rule.explanation) {
-                        html += `<div class="explanation-box"><strong>Note:</strong> ${rule.explanation.substring(0, 150)}...</div>`;
-                    }
-                } else { // detailed
-                    html += `<div class="solution-box"><strong>Recommended solution:</strong> ${rule.solution}</div>`;
-                    if (rule.explanation) {
-                        html += `<div class="explanation-box"><strong>Explanation:</strong> ${rule.explanation}</div>`;
-                    }
-                }
-                
-                // Show G-code commands if present
-                if (rule.solution.includes('M') || rule.solution.includes('G')) {
-                    const gcodeMatch = rule.solution.match(/(M\d+|G\d+)\s+[A-Z]\d+(?:\.\d+)?/g);
-                    if (gcodeMatch) {
-                        html += `<div class="command-box">${gcodeMatch.join('<br>')}</div>`;
-                    }
-                }
-                
-                // Keywords
-                if (rule.keywords.length > 0) {
-                    html += `<div style="margin-top: 12px;"><small>Related terms: ${rule.keywords.map(k => 
-                        `<span class="issue-tag">${k}</span>`
-                    ).join('')}</small></div>`;
-                }
-                
-                // Metadata
-                html += `
-                    <div class="rule-metadata">
-                        <span class="rule-id">Rule #${rule.id}</span>
-                        <span>• Category: ${rule.category}</span>
-                        <span>• Match confidence: High</span>
-                    </div>
-                `;
-                
-                const msg = this.addBotMessage(html);
-                msg.classList.add(this.detailLevel);
-            }
-            
-            displayMultipleDiagnosis(matches, query) {
-                let html = `
-                    <div class="diagnostic-icon"><i class="fas fa-search"></i></div>
-                    <strong>Diagnosis for "${query}":</strong> Found ${matches.length} possible issues
-                `;
-                
-                html += `<div class="solution-box" style="margin-top: 12px;">
-                    <strong>Analysis:</strong> Your description matches ${matches.length} known issues. Review the most likely matches below:
-                </div>`;
-                
-                matches.forEach((match, index) => {
+
+                let html = `<strong>Diagnosis Found:</strong><br>`;
+                results.forEach(res => {
                     html += `
-                        <div style="margin: 16
+                        <div class="solution-card">
+                            <strong>Problem:</strong> ${res.problem}<br>
+                            <strong>Solution:</strong> ${res.solution}
+                            ${this.detectCode(res.solution)}
+                        </div>
+                        ${res.explain ? `<div class="technical-note"><strong>Explanation:</strong> ${res.explain}</div>` : ''}
+                        <hr style="margin:10px 0; opacity:0.2;">
+                    `;
+                });
+                this.addMessage(html, 'bot');
+            }
+
+            detectCode(text) {
+                // Extracts G-code or #defines
+                const codeMatch = text.match(/(M\d+|G\d+|#define\s+[A-Z0-9_]+)/g);
+                return codeMatch ? `<span class="code-snippet">${codeMatch.join(' ')}</span>` : '';
+            }
+
+            addMessage(text, side) {
+                const flow = document.getElementById('messageFlow');
+                const div = document.createElement('div');
+                div.className = `msg msg-${side}`;
+                div.innerHTML = text;
+                flow.appendChild(div);
+                flow.scrollTop = flow.scrollHeight;
+            }
+
+            filterByCat(cat) {
+                const samples = this.rules.filter(r => r.category === cat).slice(0, 3);
+                this.renderResponse(samples);
+            }
+        }
+
+        const app = new BuddAI();
+    </script>
+</body>
+</html>
